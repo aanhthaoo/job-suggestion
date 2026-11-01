@@ -1,0 +1,161 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: jobportal
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/jobportal
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      CORS_ORIGINS: http://localhost:3000
+      MOCK_JOBS_FILE: /app/frontend/mock/jobs.json
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - ./data/uploads:/app/uploads
+      - ./frontend/mock:/app/frontend/mock:ro
+    restart: unless-stopped
+    command: >
+      bash -c "python -m app.seed_db || echo 'seed failed (continuing)';
+      exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/jobs?limit=1')\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  worker:
+    build: ./backend
+    command: celery -A app.celery_app:celery_app worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/jobportal
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      MOCK_JOBS_FILE: /app/frontend/mock/jobs.json
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+      - ./data/uploads:/app/uploads
+      - ./frontend/mock:/app/frontend/mock:ro
+    restart: unless-stopped
+
+  beat:
+    build: ./backend
+    command: celery -A app.celery_app:celery_app beat --loglevel=info
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/jobportal
+      REDIS_URL: redis://redis:6379/0
+      MOCK_JOBS_FILE: /app/frontend/mock/jobs.json
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+      - ./frontend/mock:/app/frontend/mock:ro
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    restart: unless-stopped
+
+  superset:
+    build:
+      context: ./superset
+      dockerfile: Dockerfile
+    image: job-suggestion-superset:latest
+    ports:
+      - "8088:8088"
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-EjlTdgHcmLxpsh7ZS7BGYPmRGXmq3/mBjsigYc/vLv2JAxiNRCN4xo4N}
+      SUPERSET_CONFIG_PATH: /app/superset_config.py
+      SUPERSET_LOAD_EXAMPLES: "no"
+      SQLALCHEMY_DATABASE_URI: sqlite:////app/superset_home/superset.db
+    volumes:
+      - superset_home:/app/superset_home
+      - ./superset/superset_config.py:/app/superset_config.py:ro
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    # Initialize on first boot (idempotent), then serve. Admin: admin/admin
+    command: >
+      bash -c "set -e;
+      superset db upgrade;
+      superset fab create-admin --username admin --firstname Admin --lastname User --email admin@example.com --password admin || true;
+      superset init;
+      exec gunicorn -w 4 -b 0.0.0.0:8088 --timeout 120 'superset.app:create_app()'"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8088/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  # One-shot: register Postgres in Superset and create datasets/charts/dashboard.
+  superset-init:
+    image: job-suggestion-superset:latest
+    depends_on:
+      superset:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    environment:
+      SUPERSET_URL: http://superset:8088
+      SUPERSET_USER: admin
+      SUPERSET_PASS: admin
+      DB_URI: postgresql+psycopg2://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/jobportal
+      DB_NAME_LABEL: JobPortal Postgres
+      SUPERSET_DB_PATH: /app/superset_home/superset.db
+    volumes:
+      - ./superset:/bootstrap:ro
+      - superset_home:/app/superset_home
+    command: python /bootstrap/bootstrap_superset.py
+    restart: "no"
+
+volumes:
+  postgres_data:
+  superset_home:
