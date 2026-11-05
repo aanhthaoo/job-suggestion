@@ -162,21 +162,34 @@ Frontend giao tiếp mượt mà với Backend FastAPI qua hơn 25 API endpoint.
 
 ---
 
-## YÊU CẦU 5: KIỂM THỬ HỆ THỐNG VÀ VIẾT BÁO CÁO ĐÁNH GIÁ (2 phút)
+## YÊU CẦU 5: KIỂM THỬ HỆ THỐNG VÀ VIẾT BÁO CÁO ĐÁNH GIÁ (2.5 phút)
 
 [Thao tác màn hình]
 - Bên trái: Đánh dấu tích vào Yêu cầu 5 (đã hoàn thành cả 5/5 yêu cầu).
-- Bên phải: Mở file báo cáo docs/bao-cao-danh-gia.md.
+- Bên phải: Mở cửa sổ Terminal (PowerShell hoặc Command Prompt), gõ lệnh chạy script kiểm thử:
+  python scripts/run_tests.py
+- Chờ vài giây để màn hình hiển thị trực tiếp quá trình kiểm thử tự động:
+  + Bước 1: Kiểm tra tính toàn vẹn 8 bảng dữ liệu (3.575 tin tuyển dụng thật, 410 ứng viên, 2.621 đơn ứng tuyển) -> đều báo PASSED.
+  + Bước 2: Chạy kiểm thử tự động pytest cho bộ bóc tách CV, 6 quy tắc CV Health và giải thuật AI Matching -> 17 test cases lần lượt báo PASSED xanh lá.
+  + Bước 3: Bảng tổng kết xuất hiện: "TẤT CẢ CÁC BÀI KIỂM THỬ ĐÃ VƯỢT QUA 100% (ALL TESTS PASSED)".
+- Tiếp tục thao tác: Mở file báo cáo docs/bao-cao-danh-gia.md ở nửa màn hình bên phải.
 
 [Lời thoại]
-Yêu cầu cuối cùng là kiểm thử hệ thống với tập dữ liệu mẫu và viết báo cáo đánh giá hiệu quả của mô hình gợi ý.
+Yêu cầu cuối cùng trong checklist là kiểm thử hệ thống với tập dữ liệu mẫu và viết báo cáo đánh giá hiệu quả của mô hình gợi ý.
 
-Nhóm đã thực hiện kiểm nghiệm bài bản và tự động sinh ra file Báo cáo đánh giá khoa học ở nửa màn hình bên phải:
-- Thử nghiệm trên 400 ứng viên kiểm thử và hơn 1.200 tin tuyển dụng được chia tách độc lập theo ngành.
-- Kết quả xếp hạng: Mô hình AI đạt nDCG@10 là 0.471 và MRR là 0.629, vượt trội rất nhiều so với việc gợi ý ngẫu nhiên (nDCG = 0.010) hoặc chỉ dùng phương pháp TF-IDF đơn lẻ (nDCG = 0.122).
+Trước hết, về phần kiểm thử hệ thống:
+Nhóm đã viết sẵn bộ script kiểm thử tự động toàn diện. Như thầy cô và các bạn đang theo dõi trực tiếp trên terminal bên phải, khi chạy lệnh `python scripts/run_tests.py`:
+- Hệ thống tự động quét kiểm tra tính toàn vẹn của hơn 3.500 tin tuyển dụng thật và hồ sơ ứng viên trong cơ sở dữ liệu.
+- Tiếp theo, hệ thống tự động chạy các bộ test case cho bộ bóc tách CV, thuật toán chấm điểm sức khỏe 6 luật định lượng, và kiểm tra tính đơn điệu của điểm số Matching Score 7 đặc trưng.
+- Toàn bộ các bài kiểm thử đều đã vượt qua 100%, chứng minh hệ thống hoạt động ổn định và chính xác.
+
+Tiếp theo, về Báo cáo đánh giá hiệu quả gợi ý:
+Nhóm đã tiến hành kiểm nghiệm bài bản và tự động sinh ra file Báo cáo đánh giá khoa học ở nửa màn hình bên phải:
+- Thử nghiệm trên 400 ứng viên kiểm thử và hơn 1.200 tin tuyển dụng được chia tách độc lập theo ngành (train/test độc lập để chống học vẹt).
+- Về độ chính xác xếp hạng: Mô hình AI (lr-v1) đạt nDCG@10 là 0.471 và MRR là 0.629, vượt trội rất nhiều so với gợi ý ngẫu nhiên (nDCG = 0.010) hoặc chỉ dùng phương pháp TF-IDF đơn lẻ (nDCG = 0.122).
 - Về độ nhạy của điểm số: Khi ứng viên học thêm 1 kỹ năng còn thiếu, điểm số tăng trung bình +0.064 và không giảm ở 100% các trường hợp thử nghiệm.
 - Về hiệu năng: Thời gian phản hồi API khi tính matching cho 20 việc làm chỉ mất trung bình 51 mili-giây, đáp ứng tốt yêu cầu thời gian thực.
-- Toàn bộ 14 test case tự động kiểm thử nghiệp vụ của backend đều vượt qua 100%.
+- Về mô hình ước lượng lương: Báo cáo chỉ rõ mô hình Random Forest có độ sai lệch tương đương mức trung vị (MAE ~4.6 triệu), nên hệ thống kết hợp thông minh: lấy mức trung vị phân khúc làm ước lượng chính và kèm dự đoán Random Forest để ứng viên tham khảo.
 
 ---
 

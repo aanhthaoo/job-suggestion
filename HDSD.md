@@ -13,7 +13,8 @@ Tài liệu này hướng dẫn chi tiết từ A-Z cách cài đặt, khởi ch
 5. [Tài khoản demo & Đăng nhập 1-Click](#5-tài-khoản-demo--đăng-nhập-1-click)
 6. [Kịch bản trải nghiệm tính năng nổi bật](#6-kịch-bản-trải-nghiệm-tính-năng-nổi-bật)
 7. [Các lệnh quản trị Docker thường dùng](#7-các-lệnh-quản-trị-docker-thường-dùng)
-8. [Xử lý sự cố thường gặp (Troubleshooting)](#8-xử-lý-sự-cố-thường-gặp-troubleshooting)
+8. [Chạy kiểm thử tự động hệ thống](#8-chạy-kiểm-thử-tự-động-hệ-thống)
+9. [Xử lý sự cố thường gặp (Troubleshooting)](#9-xử-lý-sự-cố-thường-gặp-troubleshooting)
 
 ---
 
@@ -183,7 +184,41 @@ Trong quá trình vận hành, bạn có thể sử dụng các lệnh Docker sa
 
 ---
 
-## 8. Xử lý sự cố thường gặp (Troubleshooting)
+## 8. Chạy kiểm thử tự động hệ thống (Automated Testing)
+
+Dự án đã tích hợp sẵn bộ kiểm thử tự động toàn diện để phục vụ việc đánh giá, kiểm thử và demo:
+
+### Cách 1: Chạy script kiểm thử tổng hợp (Khuyến nghị cho Demo)
+Mở Terminal và gõ:
+```bash
+python scripts/run_tests.py
+```
+Lệnh này sẽ tự động:
+1. Quét kiểm tra tính toàn vẹn 8 bảng cơ sở dữ liệu (3.575 tin tuyển dụng thật, 410 ứng viên, 2.621 đơn tuyển).
+2. Chạy kiểm thử tự động cho bộ bóc tách CV (PDF/DOCX), 6 quy tắc CV Health và thuật toán AI Matching 7 đặc trưng.
+3. Xuất bảng tổng kết kết quả kiểm thử (PASSED 100%).
+
+### Cách 2: Chạy kiểm thử bằng Pytest
+```bash
+# Chạy toàn bộ 35 test cases
+pytest backend/tests -v
+
+# Hoặc chạy kiểm thử nhanh bộ giải thuật AI CV & Matching
+pytest backend/tests/test_cv.py backend/tests/test_matching.py -v
+```
+
+### Cách 3: Chạy script đánh giá mô hình ML và sinh báo cáo
+```bash
+# Tính toán các chỉ số nDCG@10, P@5, MRR và độ trễ API
+python backend/ml/evaluate.py
+
+# Sinh lại file tài liệu Báo cáo đánh giá (docs/bao-cao-danh-gia.md & .docx)
+python scripts/gen_report.py
+```
+
+---
+
+## 9. Xử lý sự cố thường gặp (Troubleshooting)
 
 ### 1. Lỗi xung đột cổng (Port already allocated)
 - **Hiện tượng**: Báo lỗi `Bind for 0.0.0.0:5432 failed: port is already allocated` hoặc tương tự với cổng 3000, 8000, 8088.
