@@ -8,7 +8,16 @@ DEFAULT_URL = "postgresql://postgres:postgres@localhost:5432/jobportal"
 
 
 def get_dsn() -> str:
-    return os.getenv("DATABASE_URL", DEFAULT_URL)
+    """DATABASE_URL, else built from the project .env (local dev outside Docker)."""
+    if os.getenv("DATABASE_URL"):
+        return os.environ["DATABASE_URL"]
+    from dotenv import dotenv_values
+    from .paths import ROOT
+    env = dotenv_values(ROOT / ".env")
+    user = env.get("DB_USER", "postgres")
+    pw = env.get("DB_PASSWORD", "postgres")
+    name = env.get("DB_NAME", "jobportal")
+    return f"postgresql://{user}:{pw}@localhost:5432/{name}"
 
 
 def connect(retries: int = 30, delay: float = 2.0):

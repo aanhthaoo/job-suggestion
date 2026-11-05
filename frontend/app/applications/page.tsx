@@ -1,118 +1,169 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
-import mockJobs from '@/mock/jobs.json'
+import { api, type Application } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 import { formatDate } from '@/lib/utils'
-import { FileText, MapPin, Building } from 'lucide-react'
+import { Briefcase, Calendar, MapPin, CheckCircle2, Clock, AlertCircle, ArrowRight } from 'lucide-react'
 
-const APPLICATIONS_KEY = 'applications'
-
-const statusLabels: Record<string, string> = {
-  submitted: 'Đã nộp',
-  reviewed: 'Đang xem xét',
-  interviewing: 'Phỏng vấn',
-  accepted: 'Trúng tuyển',
-  rejected: 'Không đạt',
+const STATUS: Record<string, { label: string; cls: string; step: number }> = {
+  applied: { label: 'Đã nộp đơn', cls: 'bg-blue-50 text-blue-700 border-blue-200', step: 1 },
+  screening: { label: 'Đang sàng lọc', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200', step: 2 },
+  interview: { label: 'Vào phỏng vấn', cls: 'bg-amber-50 text-amber-800 border-amber-200', step: 3 },
+  offer: { label: 'Nhận Offer', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', step: 4 },
+  rejected: { label: 'Chưa phù hợp', cls: 'bg-rose-50 text-rose-700 border-rose-200', step: 0 },
 }
 
-const statusStyles: Record<string, string> = {
-  submitted: 'bg-gray-100 text-gray-800',
-  reviewed: 'bg-blue-100 text-blue-800',
-  interviewing: 'bg-purple-100 text-purple-800',
-  accepted: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
-}
+const STAGES = ['Đã nộp', 'Sàng lọc', 'Phỏng vấn', 'Offer']
 
 export default function ApplicationsPage() {
-  const [applications, setApplications] = useState<any[]>([])
+  const { ready } = useAuth(['candidate'])
+  const [items, setItems] = useState<Application[]>([])
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const load = () => {
-      let apps: any[] = []
-      try {
-        apps = JSON.parse(localStorage.getItem(APPLICATIONS_KEY) || '[]')
-      } catch {
-        apps = []
-      }
-      const enriched = apps.map((app) => ({
-        ...app,
-        job: mockJobs.find((j: any) => j.id === app.job_id),
-      }))
-      setApplications(enriched)
+    if (ready) {
+      api.getApplications()
+        .then(setItems)
+        .catch((e) => setError(e.message))
+        .finally(() => setLoading(false))
     }
-    load()
-    window.addEventListener('applications_changed', load)
-    return () => window.removeEventListener('applications_changed', load)
-  }, [])
+  }, [ready])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50/60">
       <Header />
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center gap-3 mb-8">
-          <FileText className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-900">Hồ sơ ứng tuyển</h1>
+
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="mb-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Đơn ứng tuyển của tôi
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Theo dõi tiến trình xét duyệt hồ sơ tại các doanh nghiệp
+            </p>
+          </div>
+          <span className="px-3.5 py-1.5 rounded-xl bg-white border border-rose-200/80 text-xs font-semibold text-rose-700 shadow-2xs">
+            {items.length} hồ sơ đã nộp
+          </span>
         </div>
 
-        {applications.length > 0 ? (
-          <div className="space-y-4">
-            {applications.map((app) => (
-              <div
-                key={app.id}
-                className="bg-white rounded-lg border border-gray-200 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-              >
-                <div>
-                  {app.job ? (
-                    <>
-                      <Link
-                        href={`/jobs/${app.job.id}`}
-                        className="text-lg font-semibold text-gray-900 hover:text-blue-600"
-                      >
-                        {app.job.title}
-                      </Link>
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-1">
-                        <span className="flex items-center gap-1">
-                          <Building className="w-4 h-4" />
-                          {app.job.company_name}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
-                          {app.job.location}
-                        </span>
-                        <span>Ứng tuyển {formatDate(app.applied_at)}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <span className="text-gray-500">Công việc không còn tồn tại</span>
-                  )}
-                </div>
-                <span
-                  className={`self-start sm:self-center px-3 py-1 rounded-full text-sm font-medium ${
-                    statusStyles[app.status] || statusStyles.submitted
-                  }`}
-                >
-                  {statusLabels[app.status] || app.status}
-                </span>
-              </div>
-            ))}
+        {error && (
+          <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-2xl mb-6 text-sm flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
+            <span>{error}</span>
           </div>
-        ) : (
-          <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
-            <p className="text-gray-500 text-lg mb-2">Bạn chưa ứng tuyển công việc nào</p>
-            <p className="text-gray-400 text-sm mb-6">
-              Tìm công việc phù hợp và nhấn &quot;Ứng tuyển ngay&quot;
+        )}
+
+        {ready && items.length === 0 && !error && !loading && (
+          <div className="bg-white rounded-3xl border border-slate-200/80 p-12 text-center shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-pink-100 to-rose-50 text-pink-600 flex items-center justify-center mx-auto mb-3">
+              <Briefcase className="w-6 h-6" />
+            </div>
+            <h3 className="font-bold text-slate-800 text-base mb-1">Bạn chưa nộp đơn vào vị trí nào</h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mb-5">
+              Khám phá danh sách việc làm thông minh phù hợp với kỹ năng của bạn để ứng tuyển ngay.
             </p>
             <Link
-              href="/jobs"
-              className="inline-block bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+              href="/recommendations"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold text-xs sm:text-sm shadow-sm hover:shadow-md transition"
             >
-              Tìm việc ngay
+              <span>Xem việc làm gợi ý</span>
+              <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         )}
-      </div>
+
+        <div className="space-y-4">
+          {items.map((a) => {
+            const st = STATUS[a.status] || { label: a.status, cls: 'bg-slate-100 text-slate-700', step: 1 }
+            const isRejected = a.status === 'rejected'
+
+            return (
+              <div
+                key={a.id}
+                className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm hover:border-pink-300 transition"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div>
+                    <Link
+                      href={`/jobs/${a.job_id}`}
+                      className="font-bold text-slate-900 text-lg hover:text-blue-600 transition"
+                    >
+                      {a.title}
+                    </Link>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1">
+                      <span className="font-medium text-slate-700">{a.company_name}</span>
+                      <span>·</span>
+                      <span className="flex items-center">
+                        <MapPin className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                        {a.location || 'Toàn quốc'}
+                      </span>
+                      <span>·</span>
+                      <span className="flex items-center">
+                        <Calendar className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                        Nộp ngày {formatDate(a.applied_at)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-start sm:self-center">
+                    {a.match_score != null && (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                        Khớp {Math.round(a.match_score * 100)}%
+                      </span>
+                    )}
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${st.cls}`}>
+                      {st.label}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Funnel Progress Tracker */}
+                <div className="mt-4 pt-1">
+                  <p className="text-[11px] font-semibold text-slate-400 mb-2">Tiến trình xét tuyển:</p>
+                  <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                    {STAGES.map((stg, idx) => {
+                      const stepNum = idx + 1
+                      const reached = !isRejected && st.step >= stepNum
+                      const current = !isRejected && st.step === stepNum
+
+                      return (
+                        <div key={stg} className="flex flex-col items-center">
+                          <div
+                            className={`w-full h-1.5 rounded-full mb-1.5 transition-all ${
+                              reached
+                                ? 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                                : isRejected && idx === 0
+                                ? 'bg-rose-400'
+                                : 'bg-slate-100'
+                            }`}
+                          />
+                          <span
+                            className={`text-[11px] font-medium ${
+                              current
+                                ? 'text-blue-700 font-bold'
+                                : reached
+                                ? 'text-slate-700'
+                                : 'text-slate-400'
+                            }`}
+                          >
+                            {stg}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </main>
     </div>
   )
 }

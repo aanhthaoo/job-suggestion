@@ -21,6 +21,11 @@ body {
 /* The UI is light-only: every dark surface sets text-white explicitly. Keeping the
    prefers-color-scheme override made inputs (which inherit body color) render
    near-white text on white fields. */
+::selection {
+  background-color: #fce7f3;
+  color: #9d174d;
+}
+
 @layer base {
   input,
   textarea,

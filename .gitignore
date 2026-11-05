@@ -8,3 +8,10 @@ dist/
 build/
 .next/
 .DS_Store
+celerybeat-schedule*
+data/uploads/
+backend/uploads/
+backend/models/*.joblib
+data/raw/
+frontend/.next/
+frontend/node_modules/

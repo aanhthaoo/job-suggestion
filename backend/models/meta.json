@@ -1,0 +1,26 @@
+{
+  "default": "lr-v1",
+  "test_categories": [
+    "Công nghệ thông tin",
+    "Tài chính - Kế toán",
+    "Logistics - Vận tải",
+    "Xây dựng - Kiến trúc"
+  ],
+  "train_pairs": 6999,
+  "test_pairs": 3723,
+  "auc_test": {
+    "lr-v1": 0.9896,
+    "heuristic-v1": 0.9856,
+    "skill_cov": 0.9667
+  },
+  "coef": {
+    "skill_cov": 12.197,
+    "text_sim": 4.343,
+    "exp_fit": 1.375,
+    "edu_fit": 8.956,
+    "loc_fit": 2.294,
+    "salary_fit": 2.303,
+    "level_fit": 3.643
+  },
+  "intercept": -21.145
+}

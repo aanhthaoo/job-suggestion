@@ -16,78 +16,38 @@ services:
       retries: 5
     restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
 
   backend:
     build: ./backend
     environment:
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/jobportal
-      REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       CORS_ORIGINS: http://localhost:3000
-      MOCK_JOBS_FILE: /app/frontend/mock/jobs.json
+      DATA_DIR: /data
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
     ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     volumes:
       - ./backend:/app
-      - ./data/uploads:/app/uploads
-      - ./frontend/mock:/app/frontend/mock:ro
+      - ./data:/data
     restart: unless-stopped
     command: >
       bash -c "python -m app.seed_db || echo 'seed failed (continuing)';
+      [ -f models/lr.joblib ] || python -m ml.train_match || echo 'train_match failed (heuristic fallback)';
+      [ -f models/salary.joblib ] || python -m ml.train_salary || echo 'train_salary failed';
       exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/jobs?limit=1')\" || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
       start_period: 30s
 
-  worker:
-    build: ./backend
-    command: celery -A app.celery_app:celery_app worker --loglevel=info
-    environment:
-      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/jobportal
-      REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
-      MOCK_JOBS_FILE: /app/frontend/mock/jobs.json
-    depends_on:
-      - postgres
-      - redis
-    volumes:
-      - ./backend:/app
-      - ./data/uploads:/app/uploads
-      - ./frontend/mock:/app/frontend/mock:ro
-    restart: unless-stopped
 
-  beat:
-    build: ./backend
-    command: celery -A app.celery_app:celery_app beat --loglevel=info
-    environment:
-      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/jobportal
-      REDIS_URL: redis://redis:6379/0
-      MOCK_JOBS_FILE: /app/frontend/mock/jobs.json
-    depends_on:
-      - postgres
-      - redis
-    volumes:
-      - ./backend:/app
-      - ./frontend/mock:/app/frontend/mock:ro
-    restart: unless-stopped
 
   frontend:
     build: ./frontend

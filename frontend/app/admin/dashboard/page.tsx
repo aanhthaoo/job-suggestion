@@ -1,246 +1,209 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
+import SimBanner from '@/components/SimBanner'
 import { api } from '@/lib/api'
-import { Database, Server, Activity, Users, Briefcase, FileText, RefreshCw } from 'lucide-react'
-import mockJobs from '@/mock/jobs.json'
+import { useAuth } from '@/lib/auth'
+import { SUPERSET_URL } from '@/lib/utils'
+import { Database, ExternalLink, BarChart3, TrendingUp, Layers, AlertCircle, Briefcase, Users, FileText, CheckCircle2 } from 'lucide-react'
 
-// Fallback data so the dashboard is presentable even when the backend is down.
-const FALLBACK_STATS = {
-  postgres_status: 'disconnected',
-  redis_status: 'disconnected',
-  celery_status: 'idle',
-  total_jobs: mockJobs.length,
-  total_users: 3,
-  today_applications: 0,
+type Stats = Awaited<ReturnType<typeof api.getAdminStats>>
+type Market = Awaited<ReturnType<typeof api.getMarketStats>>
+
+const TABLE_LABEL: Record<string, string> = {
+  job_posting: 'Tin tuyển dụng',
+  candidate: 'Ứng viên',
+  application: 'Đơn ứng tuyển',
+  company: 'Doanh nghiệp',
+  skill: 'Kỹ năng chuẩn',
+  candidate_skill: 'Kỹ năng ứng viên',
+  job_skill: 'Kỹ năng tin yêu cầu',
+  users: 'Tài khoản người dùng',
 }
 
-const FALLBACK_TASKS = [
-  {
-    name: 'ingest_greenhouse_jobs',
-    status: 'Idle',
-    started_at: '-',
-    duration: '-',
-    result: 'Backend chưa kết nối',
-  },
-]
-
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<any>(null)
-  const [tasks, setTasks] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
-  const [offline, setOffline] = useState(false)
+  const { ready } = useAuth(['admin'])
+  const [s, setS] = useState<Stats | null>(null)
+  const [m, setM] = useState<Market | null>(null)
+  const [err, setErr] = useState('')
 
   useEffect(() => {
-    loadDashboardData()
-  }, [])
+    if (!ready) return
+    api.getAdminStats().then(setS).catch((e) => setErr(e.message))
+    api.getMarketStats().then(setM).catch(() => {})
+  }, [ready])
 
-  const loadDashboardData = async () => {
-    try {
-      const [statsData, tasksData] = await Promise.all([
-        api.getAdminStats(),
-        api.getTasks(),
-      ])
-      setStats(statsData)
-      setTasks(tasksData)
-      setOffline(false)
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error)
-      setStats(FALLBACK_STATS)
-      setTasks(FALLBACK_TASKS)
-      setOffline(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSyncNow = async () => {
-    setSyncing(true)
-    try {
-      await api.triggerSync()
-      setTimeout(loadDashboardData, 2000) // Reload after 2s
-    } catch (error) {
-      console.error('Failed to trigger sync:', error)
-      setOffline(true)
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <div className="max-w-7xl mx-auto px-4 py-12 text-center">
-          <p className="text-gray-600">Đang tải...</p>
-        </div>
-      </div>
-    )
-  }
+  const maxSd = Math.max(1, ...(m?.skill_supply_demand.map((x) => Math.max(x.n_candidates, x.n_jobs)) ?? [1]))
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50/60">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <button
-            onClick={handleSyncNow}
-            disabled={syncing}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50"
-          >
-            <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Đang đồng bộ...' : 'Đồng bộ ngay'}
-          </button>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Quản trị Hệ thống & BI
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Giám sát cơ sở dữ liệu, kho dữ liệu Data Warehouse và phân tích chuyên sâu
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2.5">
+            <a
+              target="_blank"
+              rel="noreferrer"
+              href={`${SUPERSET_URL}/superset/dashboard/thi-truong-lao-dong/`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-blue-200 text-xs font-semibold text-blue-700 hover:bg-blue-50/70 shadow-2xs transition"
+            >
+              <span>Superset: Thị trường lao động</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+            <a
+              target="_blank"
+              rel="noreferrer"
+              href={`${SUPERSET_URL}/superset/dashboard/tuyen-dung/`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-pink-200 text-xs font-semibold text-pink-700 hover:bg-pink-50/70 shadow-2xs transition"
+            >
+              <span>Superset: Hiệu quả tuyển dụng</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
         </div>
 
-        {offline && (
-          <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md px-4 py-3 text-sm">
-            Không kết nối được backend — đang hiển thị dữ liệu demo. Khởi động backend để xem số liệu thực.
+        <SimBanner />
+
+        {err && (
+          <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-2xl text-sm flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
+            <span>{err}</span>
           </div>
         )}
 
-        {/* System Health */}
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">System Health</h2>
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Database className="w-8 h-8 text-green-600" />
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                stats?.postgres_status === 'connected' 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-red-100 text-red-800'
-              }`}>
-                {stats?.postgres_status === 'connected' ? 'Connected' : 'Disconnected'}
+        {/* Database Record Counts */}
+        {s && (
+          <section className="bg-white/90 backdrop-blur-sm rounded-2xl border border-rose-200/80 p-6 shadow-sm">
+            <div className="flex justify-between items-center mb-5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Database className="w-4 h-4" />
+                </div>
+                <h2 className="text-base font-bold text-slate-900">
+                  Dữ liệu PostgreSQL
+                </h2>
+              </div>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-mono font-medium">
+                SEED_MODE: {s.seed_mode}
               </span>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">PostgreSQL</h3>
-            <p className="text-sm text-gray-600 mt-1">Database chính</p>
-          </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Server className="w-8 h-8 text-green-600" />
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                stats?.redis_status === 'connected' 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-red-100 text-red-800'
-              }`}>
-                {stats?.redis_status === 'connected' ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">Redis</h3>
-            <p className="text-sm text-gray-600 mt-1">Message broker & cache</p>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Activity className="w-8 h-8 text-green-600" />
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                stats?.celery_status === 'active' 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-yellow-100 text-yellow-800'
-              }`}>
-                {stats?.celery_status === 'active' ? 'Active' : 'Idle'}
-              </span>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">Celery Worker</h3>
-            <p className="text-sm text-gray-600 mt-1">Background tasks</p>
-          </div>
-        </div>
-
-        {/* Quick Stats */}
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Thống kê nhanh</h2>
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Tổng số việc làm</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.total_jobs || 0}</p>
-              </div>
-              <Briefcase className="w-12 h-12 text-blue-600" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Tổng số users</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.total_users || 0}</p>
-              </div>
-              <Users className="w-12 h-12 text-purple-600" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Ứng tuyển hôm nay</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.today_applications || 0}</p>
-              </div>
-              <FileText className="w-12 h-12 text-orange-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Tasks */}
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Background Tasks gần đây</h2>
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Task Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Started At
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Duration
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Result
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {tasks.map((task, index) => (
-                <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {task.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      task.status === 'Succeeded' 
-                        ? 'bg-green-100 text-green-800'
-                        : task.status === 'Failed'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {task.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {task.started_at}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {task.duration}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {task.result || '-'}
-                  </td>
-                </tr>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
+              {Object.entries(s.counts).map(([k, v]) => (
+                <div key={k} className="bg-slate-50/80 border border-slate-100 rounded-xl p-3.5 hover:border-pink-200 transition">
+                  <p className="text-xs text-slate-500 font-medium truncate">{TABLE_LABEL[k] || k}</p>
+                  <p className="text-2xl font-extrabold text-slate-900 mt-1">{v.toLocaleString('vi-VN')}</p>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+              <div>
+                <b>Nguồn tin tuyển dụng:</b>{' '}
+                {Object.entries(s.job_sources).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+              </div>
+              <div>
+                <b>Ứng viên:</b> Mô phỏng {s.candidates_by_origin.sim} · Thật {s.candidates_by_origin.real}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Analytics Section */}
+        {m && (
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Skill Supply & Demand */}
+            <section className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-blue-600" />
+                  Cung - Cầu kỹ năng (Top 15)
+                </h2>
+                <div className="flex items-center gap-3 text-[11px] font-semibold">
+                  <span className="flex items-center gap-1 text-blue-600">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-blue-500" /> Ứng viên
+                  </span>
+                  <span className="flex items-center gap-1 text-pink-600">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-pink-500" /> Tin tuyển dụng
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {m.skill_supply_demand.map((x) => (
+                  <div key={x.skill} className="text-xs">
+                    <div className="flex justify-between text-slate-700 font-medium mb-1">
+                      <span>{x.skill}</span>
+                      <span className="text-slate-500 text-[11px]">
+                        {x.n_candidates} ứng viên vs {x.n_jobs} tin
+                      </span>
+                    </div>
+                    {/* Blue bar: Candidates */}
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-1">
+                      <div
+                        className="h-2 bg-blue-500 rounded-full transition-all"
+                        style={{ width: `${(x.n_candidates / maxSd) * 100}%` }}
+                      />
+                    </div>
+                    {/* Pink bar: Jobs */}
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-2 bg-gradient-to-r from-pink-500 to-rose-400 rounded-full transition-all"
+                        style={{ width: `${(x.n_jobs / maxSd) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Salary Median by Category */}
+            <section className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                  Lương trung vị theo ngành (triệu VND/tháng)
+                </h2>
+                <span className="text-[11px] text-slate-400">Dữ liệu VietJobs thật</span>
+              </div>
+
+              <div className="space-y-2.5">
+                {m.salary_by_category.map((x) => {
+                  const maxSal = m.salary_by_category[0]?.p50 || 1
+                  return (
+                    <div key={x.category} className="text-xs">
+                      <div className="flex justify-between text-slate-700 font-medium mb-1">
+                        <span className="truncate pr-2">{x.category}</span>
+                        <span className="font-bold text-emerald-700 shrink-0">
+                          {x.p50} tr <span className="text-[10px] text-slate-400 font-normal">(n={x.n})</span>
+                        </span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-2 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all"
+                          style={{ width: `${(x.p50 / maxSal) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          </div>
+        )}
+      </main>
     </div>
   )
 }

@@ -1,137 +1,79 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { Job } from '@/lib/api'
-import { formatCurrency, formatDate } from '@/lib/utils'
-import { MapPin, Briefcase, DollarSign, Clock, Bookmark, BookmarkCheck } from 'lucide-react'
 import Link from 'next/link'
+import { MapPin, Wallet, Briefcase, Globe, Gift } from 'lucide-react'
+import type { Job } from '@/lib/api'
+import { formatSalary } from '@/lib/utils'
+import ScoreBadge from './ScoreBadge'
 
-interface JobCardProps {
-  job: Job
-}
-
-const SAVED_KEY = 'saved_jobs'
-
-function readSaved(): string[] {
-  if (typeof window === 'undefined') return []
-  try {
-    return JSON.parse(localStorage.getItem(SAVED_KEY) || '[]')
-  } catch {
-    return []
-  }
-}
-
-export default function JobCard({ job }: JobCardProps) {
-  const [saved, setSaved] = useState(false)
-
-  useEffect(() => {
-    setSaved(readSaved().includes(job.id))
-  }, [job.id])
-
-  const toggleSave = () => {
-    const current = readSaved()
-    const next = saved ? current.filter((id) => id !== job.id) : [...current, job.id]
-    localStorage.setItem(SAVED_KEY, JSON.stringify(next))
-    setSaved(!saved)
-    window.dispatchEvent(new Event('saved_jobs_changed'))
-  }
-
-  const jobTypeLabels = {
-    fulltime: 'Full-time',
-    parttime: 'Part-time',
-    internship: 'Internship',
-  }
-
-  const workModeLabels = {
-    onsite: 'On-site',
-    remote: 'Remote',
-    hybrid: 'Hybrid',
-  }
-
+export default function JobCard({ job, reason, score, level }: { job: Job; reason?: string; score?: number | null; level?: string | null }) {
+  const s = score ?? job.match_score
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <Link href={`/jobs/${job.id}`} className="text-xl font-semibold text-gray-900 hover:text-blue-600">
+    <Link
+      href={`/jobs/${job.id}`}
+      className="group block bg-white rounded-2xl border border-slate-200/80 p-5 hover:border-pink-300 hover:shadow-lg hover:shadow-pink-500/5 hover:-translate-y-0.5 transition-all duration-200"
+    >
+      <div className="flex justify-between items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-slate-900 text-lg group-hover:text-blue-600 transition-colors truncate">
             {job.title}
-          </Link>
-          <p className="text-gray-600 mt-1">{job.company_name}</p>
+          </h3>
+          <p className="text-sm text-slate-500 font-medium mt-0.5">{job.company_name}</p>
         </div>
-        {job.match_score && (
-          <span
-            className={`px-3 py-1 rounded-full text-sm font-medium ${
-              job.match_score >= 0.7
-                ? 'bg-green-100 text-green-800'
-                : job.match_score >= 0.55
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-800'
-            }`}
-          >
-            {Math.round(job.match_score * 100)}% Match
+        <ScoreBadge score={s} level={level ?? job.match_level} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2.5 mt-3.5 text-xs">
+        <span className="flex items-center text-slate-700 font-medium bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
+          <MapPin className="w-3.5 h-3.5 mr-1 text-slate-400" />
+          {job.location}
+        </span>
+        <span className="flex items-center text-blue-700 font-bold bg-blue-50/80 px-2.5 py-1 rounded-lg border border-blue-100">
+          <Wallet className="w-3.5 h-3.5 mr-1 text-blue-500" />
+          {formatSalary(job.salary_min, job.salary_max)}
+        </span>
+        {job.contract_type && (
+          <span className="flex items-center text-pink-700 font-medium bg-pink-50/80 px-2.5 py-1 rounded-lg border border-pink-100">
+            <Briefcase className="w-3.5 h-3.5 mr-1 text-pink-400" />
+            {job.contract_type}
+          </span>
+        )}
+        {job.level && (
+          <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg font-medium border border-indigo-100">
+            {job.level}
+          </span>
+        )}
+        {job.languages_required && (
+          <span className="flex items-center text-teal-700 font-medium bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-100">
+            <Globe className="w-3.5 h-3.5 mr-1 text-teal-500" />
+            {job.languages_required}
           </span>
         )}
       </div>
 
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center text-gray-600 text-sm">
-          <MapPin className="w-4 h-4 mr-2" />
-          {job.location}
-        </div>
-        <div className="flex items-center text-gray-600 text-sm">
-          <Briefcase className="w-4 h-4 mr-2" />
-          {jobTypeLabels[job.job_type]} • {workModeLabels[job.work_mode]}
-        </div>
-        {(job.salary_min || job.salary_max) && (
-          <div className="flex items-center text-gray-600 text-sm">
-            <DollarSign className="w-4 h-4 mr-2" />
-            {job.salary_min && job.salary_max
-              ? `${formatCurrency(job.salary_min)} - ${formatCurrency(job.salary_max)}`
-              : job.salary_min
-              ? `Từ ${formatCurrency(job.salary_min)}`
-              : job.salary_max
-              ? `Đến ${formatCurrency(job.salary_max)}`
-              : 'Thương lượng'}
-          </div>
-        )}
-        <div className="flex items-center text-gray-600 text-sm">
-          <Clock className="w-4 h-4 mr-2" />
-          Đăng {formatDate(job.posted_at)}
-        </div>
-      </div>
-
-      {job.skills_required && job.skills_required.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {job.skills_required.slice(0, 5).map((skill) => (
-            <span
-              key={skill}
-              className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md"
-            >
-              {skill}
+      {job.skills_required?.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {job.skills_required.slice(0, 5).map((sk) => (
+            <span key={sk} className="px-2.5 py-0.5 bg-slate-100/90 text-slate-700 text-[11px] rounded-md font-medium">
+              {sk}
             </span>
           ))}
+          {job.skills_required.length > 5 && (
+            <span className="text-[11px] text-slate-400 self-center font-medium">+{job.skills_required.length - 5}</span>
+          )}
         </div>
       )}
 
-      <div className="flex gap-2">
-        <Link
-          href={`/jobs/${job.id}`}
-          className="flex-1 bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
-        >
-          Xem chi tiết
-        </Link>
-        <button
-          onClick={toggleSave}
-          aria-label={saved ? 'Bỏ lưu việc làm' : 'Lưu việc làm'}
-          className={`flex items-center gap-1 px-4 py-2 border rounded-md transition-colors ${
-            saved
-              ? 'border-blue-600 text-blue-600 bg-blue-50'
-              : 'border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          {saved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-          <span className="text-sm">{saved ? 'Đã lưu' : 'Lưu'}</span>
-        </button>
-      </div>
-    </div>
+      {job.benefits && (
+        <div className="mt-3.5 flex items-center text-xs text-rose-800 bg-gradient-to-r from-rose-50/80 via-pink-50/50 to-white px-3 py-1.5 rounded-xl border border-rose-100/80 truncate">
+          <Gift className="w-3.5 h-3.5 mr-1.5 shrink-0 text-pink-500" />
+          <span className="truncate">{job.benefits.split('\n')[0].replace(/^[•\-\*]\s*/, '')}</span>
+        </div>
+      )}
+
+      {reason && (
+        <p className="mt-3 text-xs text-slate-700 bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-pink-50/40 rounded-xl px-3 py-2 border border-blue-100/70">
+          {reason}
+        </p>
+      )}
+    </Link>
   )
 }

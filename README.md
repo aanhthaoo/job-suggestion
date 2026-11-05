@@ -1,152 +1,60 @@
-# JobPortal - Hệ Thống Tìm Việc Làm Thông Minh
+# Job Suggestion: nền tảng kết nối tuyển dụng thông minh (BI + AI)
 
-Đồ án môn Business Intelligence - Đại học Thủy Lợi
+Khớp kỹ năng CV với tin tuyển dụng (Matching Score có giải thích), phân tích CV, gợi ý sửa CV (Gemini, có fallback offline),
+và dashboard BI cho thị trường lao động và nhà tuyển dụng.
 
-## Công nghệ Stack
+## Chạy nhanh
 
-### Frontend
-- Next.js 14 (App Router) + TypeScript
-- Tailwind CSS + shadcn/ui components
-- TanStack Query (React Query)
-- Zustand (state management)
+> 📖 **Xem hướng dẫn chi tiết:** Xem file **[HDSD.md](HDSD.md)** để biết chi tiết từng bước khởi chạy bằng Docker, danh sách tài khoản demo và kịch bản nghiệm thu tính năng.
 
-### Backend
-- FastAPI (Python 3.11)
-- PostgreSQL 16 + pgvector
-- Redis + Celery (background tasks)
-- Apache Superset (BI dashboards)
-
-## Cài đặt và Chạy
-
-### Cách 1: Chạy với Docker Compose (Recommended)
+Yêu cầu: Docker Desktop. Tùy chọn: dán `GEMINI_API_KEY` vào `.env` (không có key vẫn chạy đủ, gợi ý sửa CV dùng mẫu offline).
 
 ```bash
-# Clone repository
-cd job-suggestion
-
-# Start tất cả services
-docker compose up -d
-
-# Kiểm tra status
-docker compose ps
-
-# Xem logs
-docker compose logs -f frontend
-docker compose logs -f backend
+docker compose up -d --build
 ```
 
-Truy cập:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000/docs
-- Superset: http://localhost:8088
+Lần đầu backend tự áp schema, tải VietJobs từ HuggingFace (mẫu ~3500 tin), sinh ứng viên mô phỏng và huấn luyện mô hình (vài phút).
 
-### Cách 2: Chạy local (Development)
+| Dịch vụ | URL |
+|---|---|
+| Web | http://localhost:3000 |
+| API (Swagger) | http://localhost:8000/docs |
+| Superset (admin/admin) | http://localhost:8088 — dashboard `thi-truong-lao-dong` và `tuyen-dung` |
 
-#### Frontend
+Tài khoản demo: xem [ACCOUNTS.md](ACCOUNTS.md) (mật khẩu `demo123`).
+
+## Kiến trúc
+
+`postgres` (nguồn dữ liệu duy nhất) · `backend` FastAPI + scikit-learn · `frontend` Next.js · `superset` + `superset-init`.
+Không dùng GPU, embedding hay Celery/Redis.
+
+## Phát triển và kiểm thử (ngoài Docker)
+
 ```bash
-cd frontend
-npm install --legacy-peer-deps
-npm run dev
+docker compose up -d postgres
+cd backend && pip install -r requirements.txt
+python -m app.seed_db            # schema + dữ liệu
+python -m ml.train_match         # lr-v1 (nhãn yếu, chia train/test theo ngành)
+python -m ml.train_salary       # RandomForest vs baseline trung vị
+python -m pytest -q             # 35 test (cần Postgres đã seed)
+python -m ml.evaluate           # -> reports/metrics.json
+cd .. && python scripts/gen_report.py   # -> docs/bao-cao-danh-gia.md/.docx
+python scripts/gen_docs.py              # -> docs/01-yeu-cau-va-thiet-ke.md
+python scripts/check_counts.py          # kiểm tra số bản ghi
 ```
 
-#### Backend
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
+## Tài liệu
 
-## Tài khoản Demo
+- [docs/01-yeu-cau-va-thiet-ke.md](docs/01-yeu-cau-va-thiet-ke.md): yêu cầu, ERD, bảng truy vết (sinh tự động)
+- [docs/bao-cao-danh-gia.md](docs/bao-cao-danh-gia.md): báo cáo đánh giá hiệu quả gợi ý (sinh từ `reports/metrics.json`)
+- [docs/huong-dan-cham-nhan.md](docs/huong-dan-cham-nhan.md): hướng dẫn chấm nhãn người (kiểm chứng điểm khớp)
+- [docs/qa/](docs/qa/): 8 ảnh chụp luồng vàng; `python scripts/qa_screenshots.py` chụp lại
+- [PLAN-KHA-THI.md](PLAN-KHA-THI.md), [PROGRESS.md](PROGRESS.md): kế hoạch và nhật ký thi công
 
-### Admin
-- Email: `admin@test.com`
-- Password: `admin123`
+## Dữ liệu thật và mô phỏng
 
-### User
-- Email: `user@test.com`
-- Password: `user123`
+Thật: nội dung tin (tên việc, mô tả, yêu cầu, kỹ năng, lương, địa điểm) từ VietJobs.
+Mô phỏng: ngày đăng tin, công ty, ứng viên, đơn ứng tuyển và kết quả qua vòng (seed 42, cột `is_simulated`).
+Các chart dựa trên phần mô phỏng đều ghi "(mô phỏng)". Chi tiết và hạn chế trong báo cáo đánh giá.
 
-## Cấu trúc Project
-
-```
-job-suggestion/
-├── frontend/              # Next.js frontend
-│   ├── app/              # Pages (App Router)
-│   ├── components/       # React components
-│   ├── lib/              # Utilities, API client
-│   └── mock/             # Mock data
-├── backend/              # FastAPI backend
-│   ├── app/
-│   │   └── main.py       # Main application
-│   └── requirements.txt
-├── docker/               # Docker configs
-├── data/                 # Data files (VietJobs, etc.)
-├── docker-compose.yml    # Docker services
-└── README.md
-```
-
-## Tính năng
-
-### Phase 1: Giao diện (Hoàn thành)
-- ✅ Trang chủ với search bar
-- ✅ Danh sách việc làm với filters
-- ✅ Chi tiết việc làm
-- ✅ Quản lý hồ sơ cá nhân
-- ✅ Admin dashboard
-
-### Phase 2: Backend API (Đang phát triển)
-- ✅ Authentication (JWT)
-- ✅ CRUD APIs cho Jobs, Users
-- ⏳ File upload (CV PDF/DOCX)
-- ⏳ Background tasks (Celery)
-
-### Phase 3: Smart Features
-- ⏳ CV parsing (OCR + NER)
-- ⏳ Auto-matching score
-- ⏳ Personalized recommendations
-
-### Phase 4: Data Pipeline
-- ⏳ VietJobs dataset ingestion
-- ⏳ Greenhouse API integration
-- ⏳ ETL pipeline
-- ⏳ Superset dashboards
-
-## API Documentation
-
-Swagger UI: http://localhost:8000/docs
-
-## Troubleshooting
-
-### Lỗi port đã được sử dụng
-```bash
-# Kiểm tra port đang dùng
-netstat -ano | findstr :3000
-netstat -ano | findstr :8000
-netstat -ano | findstr :5432
-
-# Dừng containers
-docker compose down
-```
-
-### Lỗi database connection
-```bash
-# Restart PostgreSQL
-docker compose restart postgres
-
-# Xem logs
-docker compose logs postgres
-```
-
-### Reset toàn bộ
-```bash
-docker compose down -v
-docker compose up -d
-```
-
-## Liên hệ
-
-Email: support@jobportal.vn
-
----
-
-**Lưu ý:** Đây là bản demo cho mục đích học tập. Không sử dụng cho production.
+> Các file `QUICKSTART.md`, `RUN.md`, `DOCKER_*.md`, `GETTING_STARTED.md`, `PLAN-BI-AI-JOB-SYSTEM.md`... là tư liệu của phiên bản cũ (Celery/Redis, dữ liệu mock), không còn đúng.

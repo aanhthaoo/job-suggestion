@@ -1,0 +1,13 @@
+{
+  "n_train": 1965,
+  "n_test": 544,
+  "random_forest": {
+    "mae": 4.683,
+    "mape": 0.3028
+  },
+  "baseline_median": {
+    "mae": 4.626,
+    "mape": 0.312
+  },
+  "use_model": false
+}

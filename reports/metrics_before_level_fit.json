@@ -1,0 +1,294 @@
+{
+  "setup": {
+    "n_candidates": 400,
+    "pool_size": 1241,
+    "mean_relevant": 11.1,
+    "test_categories": [
+      "Công nghệ thông tin",
+      "Tài chính - Kế toán",
+      "Logistics - Vận tải",
+      "Xây dựng - Kiến trúc"
+    ],
+    "seed": 42,
+    "default_model": "lr-v1",
+    "relevance": "same category+level, |exp diff|<=1, job-job skill Jaccard>=0.4 (synthetic labels)"
+  },
+  "classification_auc_test": {
+    "lr-v1": 0.9856,
+    "heuristic-v1": 0.9795,
+    "skill_cov": 0.9666
+  },
+  "lr_coefficients": {
+    "skill_cov": 12.224,
+    "text_sim": 4.811,
+    "exp_fit": 0.84,
+    "edu_fit": 8.969,
+    "loc_fit": 2.207,
+    "salary_fit": 2.402
+  },
+  "ranking": {
+    "random": {
+      "P@5": {
+        "mean": 0.0075,
+        "ci95": [
+          0.004,
+          0.0115
+        ]
+      },
+      "Recall@10": {
+        "mean": 0.0085,
+        "ci95": [
+          0.0055,
+          0.0119
+        ]
+      },
+      "MRR": {
+        "mean": 0.0351,
+        "ci95": [
+          0.026,
+          0.0456
+        ]
+      },
+      "nDCG@10": {
+        "mean": 0.0081,
+        "ci95": [
+          0.005,
+          0.0116
+        ]
+      }
+    },
+    "tfidf_only": {
+      "P@5": {
+        "mean": 0.099,
+        "ci95": [
+          0.082,
+          0.115
+        ]
+      },
+      "Recall@10": {
+        "mean": 0.1561,
+        "ci95": [
+          0.1346,
+          0.1812
+        ]
+      },
+      "MRR": {
+        "mean": 0.2079,
+        "ci95": [
+          0.1808,
+          0.2356
+        ]
+      },
+      "nDCG@10": {
+        "mean": 0.1272,
+        "ci95": [
+          0.1099,
+          0.1448
+        ]
+      }
+    },
+    "skill_cov_only": {
+      "P@5": {
+        "mean": 0.19,
+        "ci95": [
+          0.166,
+          0.2165
+        ]
+      },
+      "Recall@10": {
+        "mean": 0.3505,
+        "ci95": [
+          0.3158,
+          0.3857
+        ]
+      },
+      "MRR": {
+        "mean": 0.3485,
+        "ci95": [
+          0.3123,
+          0.3855
+        ]
+      },
+      "nDCG@10": {
+        "mean": 0.2813,
+        "ci95": [
+          0.2538,
+          0.3105
+        ]
+      }
+    },
+    "heuristic-v1": {
+      "P@5": {
+        "mean": 0.275,
+        "ci95": [
+          0.2485,
+          0.302
+        ]
+      },
+      "Recall@10": {
+        "mean": 0.4618,
+        "ci95": [
+          0.426,
+          0.4969
+        ]
+      },
+      "MRR": {
+        "mean": 0.5476,
+        "ci95": [
+          0.5106,
+          0.5876
+        ]
+      },
+      "nDCG@10": {
+        "mean": 0.4029,
+        "ci95": [
+          0.3737,
+          0.4319
+        ]
+      }
+    },
+    "lr-v1": {
+      "P@5": {
+        "mean": 0.282,
+        "ci95": [
+          0.259,
+          0.3065
+        ]
+      },
+      "Recall@10": {
+        "mean": 0.4643,
+        "ci95": [
+          0.4314,
+          0.4951
+        ]
+      },
+      "MRR": {
+        "mean": 0.5838,
+        "ci95": [
+          0.5443,
+          0.6234
+        ]
+      },
+      "nDCG@10": {
+        "mean": 0.4193,
+        "ci95": [
+          0.389,
+          0.4472
+        ]
+      }
+    }
+  },
+  "sensitivity_lr": {
+    "add_required_skill": {
+      "mean_delta": 0.0804,
+      "pct_non_decreasing": 1.0,
+      "n": 180
+    },
+    "remove_matched_skill": {
+      "mean_delta": -0.5271,
+      "pct_non_increasing": 1.0,
+      "n": 200
+    }
+  },
+  "latency": {
+    "GET /recommendations?k=20": {
+      "p50_ms": 61.4,
+      "p95_ms": 133.8,
+      "n": 100
+    },
+    "GET /jobs/{id}/match": {
+      "p50_ms": 37.8,
+      "p95_ms": 88.2,
+      "n": 100
+    },
+    "GET /jobs (with match_score)": {
+      "p50_ms": 72.3,
+      "p95_ms": 111.7,
+      "n": 100
+    }
+  },
+  "salary_model": {
+    "n_train": 1965,
+    "n_test": 544,
+    "random_forest": {
+      "mae": 4.683,
+      "mape": 0.3028
+    },
+    "baseline_median": {
+      "mae": 4.626,
+      "mape": 0.312
+    },
+    "use_model": false
+  },
+  "outcome_by_score_band_simulated": {
+    "<0.55": {
+      "n": 821,
+      "interview_rate": 0.024,
+      "offer_rate": 0.005
+    },
+    ">=0.75": {
+      "n": 1611,
+      "interview_rate": 0.506,
+      "offer_rate": 0.309
+    },
+    "0.55-0.75": {
+      "n": 176,
+      "interview_rate": 0.284,
+      "offer_rate": 0.119
+    }
+  },
+  "human_labels": {
+    "status": "not_validated_by_humans",
+    "n_labeled": 0,
+    "note": "Điền cột human_score_1_to_5 trong reports/label_me.csv (>=10 dòng) rồi chạy lại ml.evaluate"
+  },
+  "error_examples": [
+    {
+      "source_job": "Các nhà chương trình UX / UI phản ứng và Node JS và Nhà thiết kế cho phần mềm CRM (Công nghệ thông tin, Mid)",
+      "candidate_skills": [
+        "CSS",
+        "Content Marketing",
+        "HTML"
+      ],
+      "top1_job": "Nhà phát triển PHP thực tập (WordPress) (Công nghệ thông tin, Intern)",
+      "top1_score": 0.9791,
+      "matched": [
+        "CSS",
+        "HTML"
+      ],
+      "why_wrong": "khác cấp bậc"
+    },
+    {
+      "source_job": "Chuyên Viên Mua Hàng Quốc Tế (Logistics - Vận tải, Mid)",
+      "candidate_skills": [
+        "English",
+        "Kỹ năng đàm phán",
+        "Phân tích thị trường",
+        "PostgreSQL",
+        "Revit"
+      ],
+      "top1_job": "Trưởng Bộ Phận Mua Hàng Mẹ Và Bé (Logistics - Vận tải, Manager)",
+      "top1_score": 0.9996,
+      "matched": [
+        "Kỹ năng đàm phán",
+        "Phân tích thị trường"
+      ],
+      "why_wrong": "khác cấp bậc"
+    },
+    {
+      "source_job": "Chuyên Viên Mua Hàng Quốc Tế (Logistics - Vận tải, Mid)",
+      "candidate_skills": [
+        "Kỹ năng bán hàng",
+        "Kỹ năng giao tiếp",
+        "Kỹ năng thuyết phục"
+      ],
+      "top1_job": "Chuyên Viên Kinh Doanh (Express Delivery/Logistics) (Logistics - Vận tải, Junior)",
+      "top1_score": 0.9966,
+      "matched": [
+        "Kỹ năng giao tiếp",
+        "Kỹ năng thuyết phục"
+      ],
+      "why_wrong": "khác cấp bậc"
+    }
+  ]
+}
